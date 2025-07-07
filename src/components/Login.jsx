@@ -46,52 +46,58 @@ const LoginPage = () => {
   };
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    setError('');
+  setIsLoading(true);
+  setError('');
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include', // Important for cookies
-        mode: 'cors', // Explicitly set CORS mode
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
-      });
+  try {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        email: formData.email,
+        password: formData.password
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Improved error handling
+      if (response.status === 401) {
+        setError('Incorrect email or password');
+      } else {
         setError(errorData.message || errorData.error || 'Login failed. Please try again.');
-        return;
       }
-
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess('Login successful! Redirecting...');
-        // Redirect to dashboard after successful login
-        setTimeout(() => {
-          window.location.href = '#/admin'; // or wherever you want to redirect
-        }, 1500);
-      } else {
-        setError(data.message || data.error || 'Login failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        setError('CORS error: Unable to connect to the server. Please contact support.');
-      } else {
-        setError('Network error. Please check your connection.');
-      }
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
+
+    const data = await response.json();
+    if (data.success) {
+      setSuccess('Login successful! Redirecting...');
+      // You can store the token in localStorage/sessionStorage or cookies
+      localStorage.setItem('authToken', data.token);  // Store the token (if any)
+
+      setTimeout(() => {
+        window.location.href = '#/admin';
+      }, 1500);
+    } else {
+      setError(data.message || 'Login failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      setError('CORS error: Unable to connect to the server. Please contact support.');
+    } else {
+      setError('Network error. Please check your connection.');
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleForgotPassword = async () => {
     setIsLoading(true);
