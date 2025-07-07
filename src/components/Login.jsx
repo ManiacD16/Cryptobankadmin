@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  User, 
   Lock, 
   Mail, 
   Eye, 
@@ -11,37 +10,136 @@ import {
   TrendingUp,
   CheckCircle,
   Zap,
-  Globe
+  Globe,
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 const LoginPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const API_BASE_URL = 'http://localhost:5000/api/v1/auth';
 
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = () => {
+    if (isForgotPassword) {
+      handleForgotPassword();
+    } else {
+      handleLogin();
+    }
+  };
+
+  const handleLogin = async () => {
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include', // Important for cookies
+        mode: 'cors', // Explicitly set CORS mode
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.message || errorData.error || 'Login failed. Please try again.');
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess('Login successful! Redirecting...');
+        // Redirect to dashboard after successful login
+        setTimeout(() => {
+          window.location.href = '#/admin'; // or wherever you want to redirect
+        }, 1500);
+      } else {
+        setError(data.message || data.error || 'Login failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setError('CORS error: Unable to connect to the server. Please contact support.');
+      } else {
+        setError('Network error. Please check your connection.');
+      }
+    } finally {
       setIsLoading(false);
-      // Redirect to dashboard (in a real app, you'd use React Router)
-      window.location.href = '#/admin';
-    }, 1500);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess('Password reset link sent to your email!');
+        setIsForgotPassword(false);
+      } else {
+        setError(data.message || 'Failed to send reset link. Please try again.');
+      }
+    } catch (error) {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: ''
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const switchToForgotPassword = () => {
+    resetForm();
+    setIsForgotPassword(true);
+  };
+
+  const switchToLogin = () => {
+    resetForm();
+    setIsForgotPassword(false);
   };
 
   const features = [
@@ -76,58 +174,44 @@ const LoginPage = () => {
               CryptoPay
             </h1>
             <p className="text-gray-600">
-              {isLogin ? 'Welcome back to your crypto dashboard' : 'Start accepting crypto payments today'}
+              {isForgotPassword 
+                ? 'Reset your password' 
+                : 'Welcome back to your crypto dashboard'
+              }
             </p>
           </div>
 
           {/* Form Container */}
           <div className="bg-white/80 backdrop-blur-lg border border-gray-200 rounded-2xl p-8 shadow-xl">
-            {/* Toggle Buttons */}
-            <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-              <button
-                onClick={() => setIsLogin(true)}
-                className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all duration-300 ${
-                  isLogin 
-                    ? 'bg-white text-gray-800 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Sign In
-              </button>
-              {/* <button
-                onClick={() => setIsLogin(false)}
-                className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all duration-300 ${
-                  !isLogin 
-                    ? 'bg-white text-gray-800 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Sign Up
-              </button> */}
-            </div>
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <span className="text-red-700 text-sm">{error}</span>
+                <button 
+                  onClick={() => setError('')}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <span className="text-green-700 text-sm">{success}</span>
+                <button 
+                  onClick={() => setSuccess('')}
+                  className="ml-auto text-green-500 hover:text-green-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Enter your full name"
-                      required={!isLogin}
-                    />
-                  </div>
-                </div>
-              )}
-
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address
@@ -146,52 +230,34 @@ const LoginPage = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {!isLogin && (
+              {!isForgotPassword && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password
+                    Password
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
+                      name="password"
+                      value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Confirm your password"
-                      required={!isLogin}
+                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      placeholder="Enter your password"
+                      required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                 </div>
               )}
 
-              {isLogin && (
+              {!isForgotPassword && (
                 <div className="flex items-center justify-between">
                   <label className="flex items-center">
                     <input
@@ -202,6 +268,7 @@ const LoginPage = () => {
                   </label>
                   <button
                     type="button"
+                    onClick={switchToForgotPassword}
                     className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
                   >
                     Forgot password?
@@ -210,7 +277,8 @@ const LoginPage = () => {
               )}
 
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 px-4 rounded-lg font-medium transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -218,36 +286,27 @@ const LoginPage = () => {
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                    <span>
+                      {isForgotPassword ? 'Send Reset Link' : 'Sign In'}
+                    </span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
-            </form>
+            </div>
 
-            {!isLogin && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-xs text-gray-600 text-center">
-                  By creating an account, you agree to our{' '}
-                  <button className="text-blue-600 hover:text-blue-700 transition-colors duration-200">
-                    Terms of Service
-                  </button>{' '}
-                  and{' '}
-                  <button className="text-blue-600 hover:text-blue-700 transition-colors duration-200">
-                    Privacy Policy
-                  </button>
-                </p>
+            {/* Back to Login link for Forgot Password */}
+            {isForgotPassword && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={switchToLogin}
+                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
+                >
+                  Back to Login
+                </button>
               </div>
             )}
           </div>
-
-          {/* Demo Credentials */}
-          {/* <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800 font-medium mb-2">Demo Mode</p>
-            <p className="text-xs text-blue-700">
-              Enter any email and password to access the dashboard
-            </p>
-          </div> */}
         </div>
       </div>
 
