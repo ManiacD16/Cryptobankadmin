@@ -14,7 +14,7 @@ const navigate = useNavigate();
           <h3 className="text-xl font-bold text-slate-800">Merchant Panel</h3>
         </div>
         <p className="text-slate-600 mb-4 text-center">Manage merchant accounts, verify documents, and handle approvals.</p>
-        <button  onClick={() => navigate('/manage')} className="w-full py-3 bg-gradient-to-r from-purple-500 to-violet-500 text-white rounded-xl hover:from-purple-600 hover:to-violet-600 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
+        <button  onClick={() => navigate('/manage')} className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-violet-600 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
           Manage Merchant
         </button>
       </div>
@@ -37,7 +37,7 @@ const navigate = useNavigate();
         </div>
         <p className="text-slate-600 mb-4 text-center">Manage fees.</p>
         <button
-        onClick={() => navigate('/fees')} className="w-full py-3 bg-gradient-to-r from-purple-500 to-violet-500 text-white rounded-xl hover:from-purple-600 hover:to-violet-600 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
+        onClick={() => navigate('/fees')} className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-violet-600 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
           Manage Fees
         </button>
       </div>

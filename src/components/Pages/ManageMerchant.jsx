@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, UserPlus, CheckCircle, XCircle, User, CreditCard, Users, ChevronLeft, ChevronRight, Eye, Search } from 'lucide-react';
+import { Shield, UserPlus, CheckCircle, XCircle, Copy, User, CreditCard, Users, ChevronLeft, ChevronRight, Eye, Search } from 'lucide-react';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+import CopyButton from "../Button/Copy";
 
 // Move components outside to prevent recreation on each render
 const TabButton = ({ id, icon: Icon, label, active, onClick }) => (
     <button
         onClick={() => onClick(id)}
         className={`flex items-center space-x-2 px-6 py-3 rounded-xl transition-all duration-300 ${active
-                ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg shadow-purple-500/25'
-                : 'bg-white text-slate-600 hover:bg-purple-50 hover:text-purple-600 border border-slate-200'
+            ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg shadow-purple-500/25'
+            : 'bg-white text-slate-600 hover:bg-purple-50 hover:text-purple-600 border border-slate-200'
             }`}
     >
         <Icon className="w-5 h-5" />
@@ -55,8 +58,13 @@ const ManageMerchant = () => {
         name: '',
         email: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        country: '',
+        phoneNo: '',
+        companyName: '',
+        licenceNo: ''
     });
+
     const [approveUserId, setApproveUserId] = useState('');
     const [blockUserId, setBlockUserId] = useState('');
     const [merchantId, setMerchantId] = useState('');
@@ -68,12 +76,30 @@ const ManageMerchant = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('register');
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [timeFilter, setTimeFilter] = useState('all');
+    const [tabHistory, setTabHistory] = useState([]);
+
+
 
     const API_BASE_URL = 'http://localhost:5000/api/v1';
 
     useEffect(() => {
         fetchMerchants();
-    }, [pagination.page, pagination.limit]);
+        // eslint-disable-next-line
+    }, [pagination.page, pagination.limit, statusFilter, timeFilter]);
+
+    const handleTabBack = () => {
+  if (tabHistory.length > 0) {
+    const previousTab = tabHistory[tabHistory.length - 1];
+    setTabHistory((prev) => prev.slice(0, prev.length - 1));
+    setActiveTab(previousTab);
+  } else {
+    window.history.back(); // Browser back
+  }
+};
+
 
     // Use useCallback to prevent function recreation
     const handleChange = useCallback((e) => {
@@ -113,7 +139,10 @@ const ManageMerchant = () => {
             const data = await response.json();
             if (!response.ok) return setError(data.message || 'Registration failed');
             setMessage('Merchant registered successfully');
-            setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+            setFormData({
+                name: '', email: '', password: '', confirmPassword: '',
+                country: '', phoneNo: '', companyName: '', licenceNo: ''
+            });
             fetchMerchants();
         } catch (err) {
             setError('Network error');
@@ -121,6 +150,7 @@ const ManageMerchant = () => {
             setLoading(false);
         }
     };
+    const isRegisterDisabled = loading || !formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.country || !formData.phoneNo || !formData.companyName;
 
     const handleApproveMerchant = async () => {
         setLoading(true);
@@ -164,27 +194,54 @@ const ManageMerchant = () => {
 
     const fetchMerchants = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/merchant?page=${pagination.page}&limit=${pagination.limit}`, {
+            let params = new URLSearchParams({
+                page: pagination.page,
+                limit: pagination.limit,
+            });
+
+            // Only add if filter/search is not default/empty
+            if (search.trim()) params.append('search', search.trim());
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+            if (timeFilter !== 'all') params.append('time', timeFilter);
+
+            const res = await fetch(`${API_BASE_URL}/merchant?${params.toString()}`, {
                 credentials: 'include'
             });
             const data = await res.json();
             setMerchants(data.data || []);
             setPagination(prev => ({
                 ...prev,
-                total: data.total,
-                totalPages: data.totalPages
+                total: data.total || 0,
+                totalPages: data.totalPages || 1,
             }));
+
         } catch (err) {
             setError('Failed to fetch merchants');
         }
     };
+    const shortDisplay = (str, start = 6, end = 4) => {
+        if (!str) return '-';
+        if (str.length <= start + end + 3) return str;
+        return `${str.slice(0, start)}...${str.slice(-end)}`;
+    };
+
+const handleTabSwitch = useCallback(
+  (tab) => {
+    if (tab !== activeTab) {
+      setTabHistory((prev) => [...prev, activeTab]);
+      setActiveTab(tab);
+    }
+  },
+  [activeTab]
+);
+
 
     const fetchMerchantDetails = async () => {
         if (!merchantId.trim()) {
             setError('Please enter a merchant ID');
             return;
         }
-        
+
         setLoading(true);
         setError('');
         try {
@@ -213,7 +270,7 @@ const ManageMerchant = () => {
             setError('Please enter a merchant ID');
             return;
         }
-        
+
         setLoading(true);
         setError('');
         try {
@@ -282,33 +339,41 @@ const ManageMerchant = () => {
                         icon={UserPlus}
                         label="Register"
                         active={activeTab === 'register'}
-                        onClick={setActiveTab}
+                        onClick={handleTabSwitch}
                     />
                     <TabButton
                         id="approve"
                         icon={CheckCircle}
                         label="Approve/Block"
                         active={activeTab === 'approve'}
-                        onClick={setActiveTab}
+                        onClick={handleTabSwitch}
                     />
                     <TabButton
                         id="details"
                         icon={Eye}
                         label="View Details"
                         active={activeTab === 'details'}
-                        onClick={setActiveTab}
+                        onClick={handleTabSwitch}
                     />
                     <TabButton
                         id="list"
                         icon={Users}
                         label="All Merchants"
                         active={activeTab === 'list'}
-                        onClick={setActiveTab}
+                        onClick={handleTabSwitch}
                     />
                 </div>
 
                 {/* Tab Content */}
                 <div className="space-y-6">
+                    <Button
+      onClick={handleTabBack}
+      variant="outline"
+      icon={ChevronLeft}
+      className="mr-3"
+    >
+      Back
+    </Button>
                     {activeTab === 'register' && (
                         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 md:p-8">
                             <div className="flex items-center space-x-3 mb-6">
@@ -344,9 +409,39 @@ const ManageMerchant = () => {
                                     onChange={handleChange}
                                     name="confirmPassword"
                                 />
+                                <InputField
+                                    placeholder="Country"
+                                    value={formData.country}
+                                    onChange={handleChange}
+                                    name="country"
+                                />
+                                <PhoneInput
+                                    country={'in'}
+                                    value={formData.phoneNo}
+                                    onChange={phone => setFormData(prev => ({ ...prev, phoneNo: phone }))}
+                                    inputProps={{
+                                        name: 'phoneNo',
+                                        required: true,
+                                        autoFocus: false,
+                                        className: 'rounded-xl border border-slate-200 px-4 py-3 bg-white w-full'
+                                    }}
+                                />
+                                <InputField
+                                    placeholder="Company Name"
+                                    value={formData.companyName}
+                                    onChange={handleChange}
+                                    name="companyName"
+                                />
+                                <InputField
+                                    placeholder="Licence Number(Optional)"
+                                    value={formData.licenceNo}
+                                    onChange={handleChange}
+                                    name="licenceNo"
+                                />
+
                             </div>
                             <div className="mt-6">
-                                <Button onClick={handleRegister} icon={UserPlus} disabled={loading}>
+                                <Button onClick={handleRegister} icon={UserPlus} disabled={isRegisterDisabled}>
                                     {loading ? 'Registering...' : 'Register Merchant'}
                                 </Button>
                             </div>
@@ -427,19 +522,21 @@ const ManageMerchant = () => {
                                             <DetailItem label="Email" value={merchantDetails.email} />
                                             <DetailItem label="Role" value={merchantDetails.role} />
                                             <div>
-  <p className="text-slate-500">Status</p>
-  <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full
+                                                <p className="text-slate-500">Status</p>
+                                                <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full
     ${merchantDetails.approved === 'approved' ? 'bg-green-100 text-green-800'
-      : merchantDetails.approved === 'blocked' ? 'bg-red-100 text-red-800'
-      : 'bg-yellow-100 text-yellow-800'}
+                                                        : merchantDetails.approved === 'blocked' ? 'bg-red-100 text-red-800'
+                                                            : 'bg-yellow-100 text-yellow-800'}
   `}>
-    {merchantDetails.approved || 'pending'}
-  </span>
-</div>
+                                                    {merchantDetails.approved || 'pending'}
+                                                </span>
+                                            </div>
 
                                             <DetailItem label="Total Amount" value={`$${merchantDetails.totalAmt || 0}`} />
                                             <DetailItem label="Wallet Address" value={merchantDetails.walletAddress} />
                                             <DetailItem label="API Key" value={merchantDetails.apiKey} />
+                                            <DetailItem label="Secret Key" value={merchantDetails.apiSecret} />
+
                                             <DetailItem
                                                 label="Created At"
                                                 value={merchantDetails.createdAt ? new Date(merchantDetails.createdAt).toLocaleString() : '-'}
@@ -472,11 +569,10 @@ const ManageMerchant = () => {
                                                             <td className="py-2 px-3 text-sm text-slate-600">{transaction.id || transaction._id}</td>
                                                             <td className="py-2 px-3 text-sm text-slate-600">${transaction.amount || '-'}</td>
                                                             <td className="py-2 px-3 text-sm">
-                                                                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                                                    transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
                                                                     transaction.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                                                    'bg-yellow-100 text-yellow-800'
-                                                                }`}>
+                                                                        'bg-yellow-100 text-yellow-800'
+                                                                    }`}>
                                                                     {transaction.status || 'pending'}
                                                                 </span>
                                                             </td>
@@ -511,6 +607,50 @@ const ManageMerchant = () => {
                                 </div>
                                 <span className="text-sm text-slate-500">Page {pagination.page}</span>
                             </div>
+                            <div className="flex flex-wrap items-center gap-3 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search by Name, Email, Company, Phone"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    className="px-4 py-2 rounded-lg border border-slate-200 w-64"
+                                />
+
+                                {/* Status Filter */}
+                                <select
+                                    value={statusFilter}
+                                    onChange={e => setStatusFilter(e.target.value)}
+                                    className="px-3 py-2 rounded-lg border border-slate-200"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="blocked">Blocked</option>
+                                </select>
+
+                                {/* Time Filter */}
+                                <select
+                                    value={timeFilter}
+                                    onChange={e => setTimeFilter(e.target.value)}
+                                    className="px-3 py-2 rounded-lg border border-slate-200"
+                                >
+                                    <option value="all">All Time</option>
+                                    <option value="today">Today</option>
+                                    <option value="last7">Last 7 Days</option>
+                                    <option value="last30">Last 30 Days</option>
+                                </select>
+
+                                <Button
+                                    onClick={() => {
+                                        setPagination({ ...pagination, page: 1 }); // Go to first page on search
+                                        fetchMerchants();
+                                    }}
+                                    icon={Search}
+                                    variant="outline"
+                                >
+                                    Search
+                                </Button>
+                            </div>
 
                             <div className="overflow-x-auto">
                                 <table className="w-full">
@@ -519,6 +659,9 @@ const ManageMerchant = () => {
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">ID</th>
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">Name</th>
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">Email</th>
+                                            <th className="text-left py-3 px-4 font-semibold text-slate-700">Company</th>
+                                            <th className="text-left py-3 px-4 font-semibold text-slate-700">Phone No.</th>
+
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">Status</th>
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">Wallet</th>
                                             <th className="text-left py-3 px-4 font-semibold text-slate-700">API Key</th>
@@ -527,29 +670,29 @@ const ManageMerchant = () => {
                                     <tbody>
                                         {merchants.map((merchant) => (
                                             <tr key={merchant._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                <td
-                                                    className="py-3 px-4 text-sm text-slate-600 cursor-pointer hover:text-purple-600 transition"
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(merchant._id);
-                                                    }}
-                                                    title="Click to copy"
-                                                >
-                                                    {merchant._id}
+                                                <td className="py-3 px-4 text-sm text-slate-600 flex items-center">
+                                                    {shortDisplay(merchant._id)}
+                                                    <CopyButton value={merchant._id} />
                                                 </td>
                                                 <td className="py-3 px-4 text-sm font-medium text-slate-800">{merchant.name}</td>
                                                 <td className="py-3 px-4 text-sm text-slate-600">{merchant.email}</td>
+                                                <td className="py-3 px-4 text-sm text-slate-600">{merchant.companyName || '-'}</td>
+                                                <td className="py-3 px-4 text-sm text-slate-600">{merchant.phoneNo || '-'}</td>
                                                 <td className="py-3 px-4">
                                                     <span className={`inline-flex px-2 py-1 text-xs rounded-full ${merchant.approved === 'approved'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : merchant.approved === 'blocked'
-                                                                ? 'bg-red-100 text-red-800'
-                                                                : 'bg-yellow-100 text-yellow-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : merchant.approved === 'blocked'
+                                                            ? 'bg-red-100 text-red-800'
+                                                            : 'bg-yellow-100 text-yellow-800'
                                                         }`}>
                                                         {merchant.approved}
                                                     </span>
                                                 </td>
-                                                <td className="py-3 px-4 text-sm text-slate-600">{merchant.walletAddress || '-'}</td>
-                                                <td className="py-3 px-4 text-xs font-mono text-slate-500">{merchant.apiKey || '-'}</td>
+                                                <td className="py-3 px-4 text-sm text-slate-600">{shortDisplay(merchant.walletAddress || '-')}</td>
+                                                <td className="py-3 px-4 text-xs font-mono text-slate-500 flex items-center">
+                                                    {merchant.apiKey ? shortDisplay(merchant.apiKey) : '-'}
+                                                    {merchant.apiKey && <CopyButton value={merchant.apiKey} />}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -565,7 +708,9 @@ const ManageMerchant = () => {
 
                             <div className="flex items-center justify-between mt-6">
                                 <Button
-                                    onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
+                                    onClick={() =>
+                                        setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })
+                                    }
                                     variant="outline"
                                     icon={ChevronLeft}
                                     disabled={pagination.page === 1}
@@ -576,10 +721,14 @@ const ManageMerchant = () => {
                                     onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
                                     variant="outline"
                                     icon={ChevronRight}
+                                    disabled={
+                                        !pagination.totalPages || pagination.page >= pagination.totalPages
+                                    }
                                 >
                                     Next
                                 </Button>
                             </div>
+
                         </div>
                     )}
                 </div>

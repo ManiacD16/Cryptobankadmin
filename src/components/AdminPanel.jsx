@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Users, CreditCard, BarChart3, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, CreditCard, BarChart3, ChevronLeft } from 'lucide-react';
 import Overview from './Pages/Overview';
 import Manage from './Pages/Manage';
 import Transactions from './Pages/Transactions';
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [tabHistory, setTabHistory] = useState([]);
+  const navigate = useNavigate();
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
@@ -13,8 +16,27 @@ const AdminPanel = () => {
     { id: 'transactions', label: 'Transactions', icon: <CreditCard className="w-4 h-4" /> },
   ];
 
+  // Tab switch logic to manage tab history
+  const handleTabSwitch = (tab) => {
+    if (tab !== activeTab) {
+      setTabHistory((prev) => [...prev, activeTab]);
+      setActiveTab(tab);
+    }
+  };
+
+  // Back button logic: first tab back, then browser back if no tab history
+  const handleTabBack = () => {
+    if (tabHistory.length > 0) {
+      const previousTab = tabHistory[tabHistory.length - 1];
+      setTabHistory((prev) => prev.slice(0, prev.length - 1));
+      setActiveTab(previousTab);
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 z-0">
       <div className="relative z-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
@@ -24,9 +46,16 @@ const AdminPanel = () => {
             </h1>
             <p className="text-slate-600 mt-2">Manage your platform with powerful administrative tools</p>
           </div>
-          <button className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl shadow-lg hover:shadow-blue-500/25 flex items-center space-x-2">
-            <Download className="w-4 h-4" />
-            <span>Export Data</span>
+        </div>
+
+        {/* Back Button */}
+        <div className="mb-4">
+          <button
+            onClick={handleTabBack}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-blue-50 transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span>Back</span>
           </button>
         </div>
 
@@ -35,7 +64,7 @@ const AdminPanel = () => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabSwitch(tab.id)}
               className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-300 ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
